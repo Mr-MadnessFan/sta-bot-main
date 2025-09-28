@@ -139,11 +139,11 @@ async def show_files(call: types.CallbackQuery):
     folder = TESTS_FOLDER if file_type == "test" else ANSWERS_FOLDER
     subject_folder = os.path.join(folder, subject)
 
+    # Удаляем сообщение с кнопками выбора предмета
+    await call.message.delete()
+
     if not os.path.exists(subject_folder) or not os.listdir(subject_folder):
-        await call.message.edit_text("❌ No files found for this subject!", reply_markup=None)
-        builder = InlineKeyboardBuilder()
-        builder.button(text="⬅ Back to Menu", callback_data="back_to_menu")
-        await call.message.answer("Choose what to do next:", reply_markup=builder.as_markup())
+        await call.message.answer("❌ No files found for this subject!", reply_markup=main_menu())
         await call.answer()
         return
 
@@ -156,7 +156,8 @@ async def show_files(call: types.CallbackQuery):
         builder.button(text=f, callback_data=f"{file_type}:{subject}:{i}")
     builder.button(text="⬅ Back to Menu", callback_data="back_to_menu")
     builder.adjust(1)
-    await call.message.edit_text(f"Select the {file_type} you want for {subject.capitalize()} 📄", reply_markup=builder.as_markup())
+
+    await call.message.answer(f"Select the {file_type} you want for {subject.capitalize()} 📄", reply_markup=builder.as_markup())
     await call.answer()
 
 # ===== Send File =====
@@ -165,6 +166,7 @@ async def send_file(call: types.CallbackQuery):
     file_type, subject, file_id = call.data.split(":")
     telegram_id = call.from_user.id
     filename = user_files.get(telegram_id, {}).get(file_id)
+
     if not filename:
         await call.message.answer("❌ File not found!", reply_markup=main_menu())
         await call.answer()
@@ -174,7 +176,10 @@ async def send_file(call: types.CallbackQuery):
     file_path = os.path.join(folder, subject, filename)
 
     try:
+        # Отправляем файл
         await call.message.answer_document(FSInputFile(file_path), caption=f"Here is your {file_type}: {filename} ✅")
+        # Удаляем сообщение с кнопками выбора файла
+        await call.message.delete()
     except Exception as e:
         await call.message.answer(f"❌ Failed to send file!\nError: {e}")
 
@@ -186,21 +191,27 @@ async def send_file(call: types.CallbackQuery):
 # ===== Back to Menu =====
 @router.callback_query(F.data == "back_to_menu")
 async def back_to_menu(call: types.CallbackQuery):
-    await call.message.edit_text("Main Menu:", reply_markup=None)
-    await call.message.answer("Choose what to do next:", reply_markup=main_menu())
+    # Удаляем сообщение с кнопкой Back
+    await call.message.delete()
+    # Показываем главное меню
+    await call.message.answer("Main Menu:", reply_markup=main_menu())
     await call.answer()
 
 # ===== Ask a Question / About Us =====
 @router.message(F.text == "❓ Ask a Question")
 async def ask_question(message: types.Message):
-    await message.answer("Send me your question, and we will answer it soon! 📨", reply_markup=ReplyKeyboardRemove())
+    await message.answer("Send me your question, and we will answer it soon! 📨\n@baxtiyorov_iq", reply_markup=ReplyKeyboardRemove())
     builder = InlineKeyboardBuilder()
     builder.button(text="⬅ Back to Menu", callback_data="back_to_menu")
     await message.answer("Back to menu:", reply_markup=builder.as_markup())
 
 @router.message(F.text == "ℹ️ About Us")
 async def about_us(message: types.Message):
-    await message.answer("We are a cool educational bot! 🎓 Enjoy learning! ✨", reply_markup=ReplyKeyboardRemove())
+    await message.answer("We are an educational SAT bot! 🎓\n\n"
+        "📌 Download SAT practice tests for Math and English.\n"
+        "📌 Get answer keys to check your results.\n"
+        "📌 Ask questions and improve your skills!\n\n"
+        "Enjoy learning and good luck on your SAT! ✨", reply_markup=ReplyKeyboardRemove())
     builder = InlineKeyboardBuilder()
     builder.button(text="⬅ Back to Menu", callback_data="back_to_menu")
     await message.answer("Back to menu:", reply_markup=builder.as_markup())
